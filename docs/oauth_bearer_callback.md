@@ -10,7 +10,7 @@ The OAuth bearer token refresh callback allows you to implement custom OAuth bea
 
 ```cpp
 using OAuthBearerTokenRefreshCallback = std::function<void(KafkaHandleBase& handle,
-                                                           const std::string& oauthbearer_config)>;
+                                                           const std::string* oauthbearer_config)>;
 
 Configuration& set_oauthbearer_token_refresh_callback(OAuthBearerTokenRefreshCallback callback);
 ```
@@ -28,8 +28,13 @@ const OAuthBearerTokenRefreshCallback& get_oauthbearer_token_refresh_callback() 
 1. **Create a callback function** that generates or fetches OAuth tokens:
 
 ```cpp
-void my_oauth_callback(KafkaHandleBase& handle, const std::string& oauthbearer_config) {
-    // Parse config if needed
+void my_oauth_callback(KafkaHandleBase& handle, const std::string* oauthbearer_config) {
+    // Check if config is provided
+    if (oauthbearer_config) {
+        // Parse config if needed
+        // Use *oauthbearer_config to access the value
+    }
+    
     // Generate token
     std::string token = generate_my_token();
     int64_t expiry_ms = get_token_expiry();
@@ -82,8 +87,8 @@ Producer producer(config);
 ### KafkaHandleBase& handle
 The Kafka handle (consumer or producer) requesting token refresh. Use `handle.get_handle()` to get the underlying `rd_kafka_t*` pointer for calling librdkafka functions.
 
-### const std::string& oauthbearer_config
-The value of the `sasl.oauthbearer.config` configuration property. You can use this to pass custom parameters to your callback.
+### const std::string* oauthbearer_config
+A pointer to the value of the `sasl.oauthbearer.config` configuration property. If the configuration property is not set, this will be `nullptr`. You can use this to pass custom parameters to your callback. Always check for `nullptr` before dereferencing.
 
 ## Callback Responsibilities
 
@@ -100,14 +105,24 @@ Failure to do either will result in authentication hanging.
 #include <cppkafka/cppkafka.h>
 #include <aws/core/auth/AWSCredentialsProvider.h>
 
-void aws_msk_token_callback(KafkaHandleBase& handle, const std::string& config) {
+void aws_msk_token_callback(KafkaHandleBase& handle, const std::string* config) {
     try {
+        // Parse region from config if provided, otherwise use default
+        std::string region = "us-east-1";
+        if (config && !config->empty()) {
+            // Parse config (e.g., "region=us-east-1")
+            // Simplified parsing shown here
+            if (config->find("region=") == 0) {
+                region = config->substr(7);
+            }
+        }
+        
         // Get AWS credentials
         auto provider = Aws::Auth::DefaultAWSCredentialsProviderChain();
         auto credentials = provider.GetAWSCredentials();
         
         // Generate MSK IAM token (simplified)
-        std::string token = generate_msk_iam_token(credentials, "us-east-1");
+        std::string token = generate_msk_iam_token(credentials, region);
         int64_t expiry_ms = current_time_ms() + 300000; // 5 minutes
         
         char errstr[512];
@@ -162,8 +177,13 @@ The callback may be invoked from librdkafka's internal threads. Ensure your call
 Always handle errors in your callback:
 
 ```cpp
-void safe_oauth_callback(KafkaHandleBase& handle, const std::string& config) {
+void safe_oauth_callback(KafkaHandleBase& handle, const std::string* config) {
     try {
+        // Check if config is provided
+        if (config) {
+            // Use *config to access the configuration string
+        }
+        
         // Token generation logic
         std::string token = generate_token();
         

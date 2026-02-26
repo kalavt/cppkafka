@@ -111,10 +111,15 @@ void background_event_callback_proxy(rd_kafka_t*, rd_kafka_event_t* event_ptr, v
 
 void oauthbearer_token_refresh_callback_proxy(rd_kafka_t*, const char* oauthbearer_config, void* opaque) {
     KafkaHandleBase* handle = static_cast<KafkaHandleBase*>(opaque);
-    string config = oauthbearer_config ? oauthbearer_config : "";
+    const string* config_ptr = nullptr;
+    string config_value;
+    if (oauthbearer_config) {
+        config_value = oauthbearer_config;
+        config_ptr = &config_value;
+    }
     CallbackInvoker<Configuration::OAuthBearerTokenRefreshCallback>
         ("oauthbearer_token_refresh", handle->get_configuration().get_oauthbearer_token_refresh_callback(), handle)
-        (*handle, config);
+        (*handle, config_ptr);
 }
 
 // Configuration

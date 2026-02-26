@@ -81,7 +81,7 @@ public:
     using SocketCallback = std::function<int(int domain, int type, int protocol)>;
     using BackgroundEventCallback = std::function<void(KafkaHandleBase& handle, Event)>;
     using OAuthBearerTokenRefreshCallback = std::function<void(KafkaHandleBase& handle,
-                                                               const std::string& oauthbearer_config)>;
+                                                               const std::string* oauthbearer_config)>;
 
     using ConfigurationBase<Configuration>::set;
     using ConfigurationBase<Configuration>::get;
