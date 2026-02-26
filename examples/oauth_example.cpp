@@ -11,9 +11,13 @@
 using namespace cppkafka;
 
 // Example token refresh callback
-void oauth_token_refresh_callback(KafkaHandleBase& handle, const std::string& oauthbearer_config) {
+void oauth_token_refresh_callback(KafkaHandleBase& handle, const std::string* oauthbearer_config) {
     std::cout << "OAuth token refresh requested" << std::endl;
-    std::cout << "Config: " << oauthbearer_config << std::endl;
+    if (oauthbearer_config) {
+        std::cout << "Config: " << *oauthbearer_config << std::endl;
+    } else {
+        std::cout << "Config: not set" << std::endl;
+    }
     
     // In a real implementation, you would:
     // 1. Parse the oauthbearer_config to get any necessary parameters
