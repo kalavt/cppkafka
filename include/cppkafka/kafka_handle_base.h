@@ -362,6 +362,7 @@ protected:
     KafkaHandleBase(Configuration config);
 
     void set_handle(rd_kafka_t* handle);
+    void destroy_handle();
     void check_error(rd_kafka_resp_err_t error) const;
     void check_error(rd_kafka_resp_err_t error,
                      const rd_kafka_topic_partition_list_t* list_ptr) const;

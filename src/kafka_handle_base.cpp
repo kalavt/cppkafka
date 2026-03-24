@@ -298,6 +298,18 @@ int KafkaHandleBase::get_destroy_flags() const {
 #endif
 
 
+void KafkaHandleBase::destroy_handle() {
+    rd_kafka_t* handle = get_handle();
+    if (handle) {
+#if RD_KAFKA_VERSION >= RD_KAFKA_DESTROY_FLAGS_SUPPORT_VERSION
+        rd_kafka_destroy_flags(handle, get_destroy_flags());
+#else
+        rd_kafka_destroy(handle);
+#endif
+        handle_.release();
+    }
+}
+
 void KafkaHandleBase::HandleDeleter::operator()(rd_kafka_t* handle) {
 #if RD_KAFKA_VERSION >= RD_KAFKA_DESTROY_FLAGS_SUPPORT_VERSION
     rd_kafka_destroy_flags(handle, handle_base_ptr_->get_destroy_flags());
