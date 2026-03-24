@@ -73,29 +73,21 @@ Consumer::Consumer(Configuration config)
 }
 
 Consumer::~Consumer() {
-    try {
-        // make sure to destroy the function closures. in case they hold kafka
-        // objects, they will need to be destroyed before we destroy the handle
-        assignment_callback_ = nullptr;
-        revocation_callback_ = nullptr;
-        rebalance_error_callback_ = nullptr;
-        close();
-    }
-    catch (const HandleException& ex) {
-        ostringstream error_msg;
-        error_msg << "Failed to close consumer [" << get_name() << "]: " << ex.what();
-        CallbackInvoker<Configuration::ErrorCallback> error_cb("error", get_configuration().get_error_callback(), this);
-        CallbackInvoker<Configuration::LogCallback> logger_cb("log", get_configuration().get_log_callback(), nullptr);
-        if (error_cb) {
-            error_cb(*this, static_cast<int>(ex.get_error().get_error()), error_msg.str());
-        }
-        else if (logger_cb) {
-            logger_cb(*this, static_cast<int>(LogLevel::LogErr), "cppkafka", error_msg.str());
-        }
-        else {
-            rd_kafka_log_print(get_handle(), static_cast<int>(LogLevel::LogErr), "cppkafka", error_msg.str().c_str());
-        }
-    }
+    // Make sure to destroy the function closures. In case they hold kafka
+    // objects, they will need to be destroyed before we destroy the handle.
+    assignment_callback_ = nullptr;
+    revocation_callback_ = nullptr;
+    rebalance_error_callback_ = nullptr;
+    // Destroy the handle via rd_kafka_destroy_flags() which sets rk_terminate
+    // before calling rd_kafka_consumer_close(). This is critical: without
+    // rk_terminate set, consumer_close() takes the blocking path, dispatches
+    // a rebalance callback, handle_rebalance calls rd_kafka_assign() (a
+    // synchronous cross-thread RPC), and the reply can get purged by
+    // rd_kafka_cgrp_terminated() — deadlocking the caller.
+    // The handle stays valid during the destroy (needed by rebalance callbacks
+    // if NO_CONSUMER_CLOSE is not set) and is released from the unique_ptr
+    // afterwards to prevent double-destroy in ~KafkaHandleBase.
+    destroy_handle();
 }
 
 void Consumer::set_assignment_callback(AssignmentCallback callback) {
