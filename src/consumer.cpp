@@ -321,12 +321,22 @@ void Consumer::handle_rebalance(rd_kafka_resp_err_t error,
             // rd_kafka_assign() can time out when the consumer-group
             // thread is blocked (e.g. broker unreachable during
             // rebalance).  This is called from a C callback
-            // (rebalance_proxy) so we must not let the exception
-            // escape.  Route the error through the rebalance-error
-            // callback instead.
+            // (rebalance_proxy) so we must not let any exception
+            // escape — that would be undefined behavior.  Route the
+            // error through the rebalance-error callback instead.
             CallbackInvoker<RebalanceErrorCallback>(
                 "rebalance error", rebalance_error_callback_, this)(
                     e.get_error());
+        }
+        catch (const std::exception&) {
+            CallbackInvoker<RebalanceErrorCallback>(
+                "rebalance error", rebalance_error_callback_, this)(
+                    RD_KAFKA_RESP_ERR__FAIL);
+        }
+        catch (...) {
+            CallbackInvoker<RebalanceErrorCallback>(
+                "rebalance error", rebalance_error_callback_, this)(
+                    RD_KAFKA_RESP_ERR__FAIL);
         }
     }
     else if (error == RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS) {
@@ -339,13 +349,23 @@ void Consumer::handle_rebalance(rd_kafka_resp_err_t error,
                 "rebalance error", rebalance_error_callback_, this)(
                     e.get_error());
         }
+        catch (const std::exception&) {
+            CallbackInvoker<RebalanceErrorCallback>(
+                "rebalance error", rebalance_error_callback_, this)(
+                    RD_KAFKA_RESP_ERR__FAIL);
+        }
+        catch (...) {
+            CallbackInvoker<RebalanceErrorCallback>(
+                "rebalance error", rebalance_error_callback_, this)(
+                    RD_KAFKA_RESP_ERR__FAIL);
+        }
     }
     else {
         CallbackInvoker<RebalanceErrorCallback>("rebalance error", rebalance_error_callback_, this)(error);
         try {
             unassign();
         }
-        catch (const HandleException&) {
+        catch (...) {
             // Best-effort unassign during error handling; ignore
             // failures since we already reported the original error.
         }
