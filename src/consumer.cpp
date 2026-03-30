@@ -314,15 +314,41 @@ void Consumer::handle_rebalance(rd_kafka_resp_err_t error,
                                 TopicPartitionList& topic_partitions) {
     if (error == RD_KAFKA_RESP_ERR__ASSIGN_PARTITIONS) {
         CallbackInvoker<AssignmentCallback>("assignment", assignment_callback_, this)(topic_partitions);
-        assign(topic_partitions);
+        try {
+            assign(topic_partitions);
+        }
+        catch (const HandleException& e) {
+            // rd_kafka_assign() can time out when the consumer-group
+            // thread is blocked (e.g. broker unreachable during
+            // rebalance).  This is called from a C callback
+            // (rebalance_proxy) so we must not let the exception
+            // escape.  Route the error through the rebalance-error
+            // callback instead.
+            CallbackInvoker<RebalanceErrorCallback>(
+                "rebalance error", rebalance_error_callback_, this)(
+                    e.get_error());
+        }
     }
     else if (error == RD_KAFKA_RESP_ERR__REVOKE_PARTITIONS) {
         CallbackInvoker<RevocationCallback>("revocation", revocation_callback_, this)(topic_partitions);
-        unassign();
+        try {
+            unassign();
+        }
+        catch (const HandleException& e) {
+            CallbackInvoker<RebalanceErrorCallback>(
+                "rebalance error", rebalance_error_callback_, this)(
+                    e.get_error());
+        }
     }
     else {
         CallbackInvoker<RebalanceErrorCallback>("rebalance error", rebalance_error_callback_, this)(error);
-        unassign();
+        try {
+            unassign();
+        }
+        catch (const HandleException&) {
+            // Best-effort unassign during error handling; ignore
+            // failures since we already reported the original error.
+        }
     }
 }
 
