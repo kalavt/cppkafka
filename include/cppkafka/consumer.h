@@ -291,6 +291,18 @@ public:
     void commit(const TopicPartitionList& topic_partitions, std::chrono::milliseconds timeout);
 
     /**
+     * \brief Commits the offset of the given message, giving up after a timeout
+     *
+     * This is the message form of commit(std::chrono::milliseconds): the committed offset is the
+     * message's own, which is its offset + 1, the way Consumer::commit(const Message&) commits it.
+     * See commit(std::chrono::milliseconds) for how the deadline and per-partition errors behave.
+     *
+     * \param msg The message whose offset is to be committed
+     * \param timeout How long to wait for the commit result
+     */
+    void commit(const Message& msg, std::chrono::milliseconds timeout);
+
+    /**
      * \brief Gets the minimum and maximum offsets for the given topic/partition
      *
      * This translates into a call to rd_kafka_get_watermark_offsets

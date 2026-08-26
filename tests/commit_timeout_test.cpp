@@ -59,4 +59,24 @@ TEST_CASE("commit bounded by a timeout", "[consumer][commit_timeout]") {
 
         check_the_deadline_returns([&] { consumer.commit(offsets, milliseconds(3000)); });
     }
+
+    SECTION("consumed message") {
+        Consumer consumer(make_config());
+
+        // rd_kafka_topic_new is the deprecated per-topic-handle API; it is here only so the
+        // fabricated message has a topic name to commit — no broker is contacted.
+        rd_kafka_topic_t * topic = rd_kafka_topic_new(consumer.get_handle(),
+                                                      "cppkafka_commit_timeout_test", nullptr);
+        REQUIRE(topic != nullptr);
+        rd_kafka_message_t bare_handle{};
+        bare_handle.err = RD_KAFKA_RESP_ERR_NO_ERROR;
+        bare_handle.rkt = topic;
+        bare_handle.partition = 0;
+        bare_handle.offset = 42;
+        Message message = Message::make_non_owning(&bare_handle);
+
+        check_the_deadline_returns([&] { consumer.commit(message, milliseconds(3000)); });
+
+        rd_kafka_topic_destroy(topic);
+    }
 }

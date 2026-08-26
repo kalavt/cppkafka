@@ -166,6 +166,11 @@ void Consumer::commit(const TopicPartitionList& topic_partitions, milliseconds t
     commit(&topic_partitions, timeout);
 }
 
+void Consumer::commit(const Message& msg, milliseconds timeout) {
+    TopicPartitionList offsets{TopicPartition(msg.get_topic(), msg.get_partition(), msg.get_offset() + 1)};
+    commit(offsets, timeout);
+}
+
 KafkaHandleBase::OffsetTuple Consumer::get_offsets(const TopicPartition& topic_partition) const {
     int64_t low;
     int64_t high;
